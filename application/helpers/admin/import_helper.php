@@ -4783,7 +4783,7 @@ function DialogixImportSurvey($sFullFilepath)
         }
 
 
-        $result = Surveys_languagesettings::model()->insertNewSurvey($insertdata);//
+        $result = Surveys_languagesettings::model()->insertNewSurvey($insertdata);
         if(!$result){
             $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Failed to insert survey language");
             break;
@@ -4804,259 +4804,157 @@ function DialogixImportSurvey($sFullFilepath)
     foreach ($adata as $row)
     {
         $rownumber += 1;
-        switch($row['class'])
-        {
-            case 'G':
-                // insert group
-                $insertdata = array();
-                $insertdata['sid'] = $iNewSID;
-                $gname = ((!empty($row['name']) ? $row['name'] : 'G' . $gseq));
-                $glang = (!empty($row['language']) ? $row['language'] : $baselang);
-                // when a multi-lang tsv-file without information on the group id/number (old style) is imported,
-                // we make up this information by giving a number 0..[numberofgroups-1] per language.
-                // the number and order of groups per language should be the same, so we can also import these files 
-                if ($lastglang!=$glang)    //reset couner on language change
-                {
-                    $iGroupcounter=0;
-                }
-                $lastglang=$glang;
-                //use group id/number from file. if missing, use an increasing number (s.a.)
-                $sGroupseq=(!empty($row['type/scale']) ? $row['type/scale'] : 'G'.$iGroupcounter++);
-                $insertdata['group_name'] = $gname;
-                $insertdata['grelevance'] = (isset($row['relevance']) ? $row['relevance'] : '');
-                $insertdata['description'] = (isset($row['text']) ? $row['text'] : '');
-                $insertdata['language'] = $glang;
-
-                // For multi language survey: same gid/sort order across all languages
-                if (isset($ginfo[$sGroupseq]))
-                {
-                    $gid = $ginfo[$sGroupseq]['gid'];
-                    $insertdata['gid'] = $gid;
-                    $insertdata['group_order'] = $ginfo[$sGroupseq]['group_order'];
-                }
-                else
-                { 
-                    $insertdata['group_order'] = $gseq;
-                }
-                $newgid = Groups::model()->insertRecords($insertdata);
-                if(!$newgid){
-                    $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Failed to insert group").". ".$clang->gT("Text file row number ").$rownumber." (".$gname.")";
-                    break;
-                }
-                if (!isset($ginfo[$sGroupseq]))
-                {
-                    $results['groups']++;
-                    $gid=$newgid;
-                    $ginfo[$sGroupseq]['gid']=$gid;
-                    $ginfo[$sGroupseq]['group_order']=$gseq++;
-                }
-                $qseq=0;    // reset the question_order
-                break;
-
-            case 'Q':
-                // insert question
-                $insertdata = array();
-                $insertdata['sid'] = $iNewSID;
-                $qtype = (isset($row['type/scale']) ? $row['type/scale'] : 'T');
-                $qname = (isset($row['name']) ? $row['name'] : 'Q' . $qseq);
-                $insertdata['gid'] = $gid;
-                $insertdata['type'] = $qtype;
-                $insertdata['title'] = $qname;
-                $insertdata['question'] = (isset($row['text']) ? $row['text'] : '');
-                $insertdata['relevance'] = (isset($row['relevance']) ? $row['relevance'] : '');
-                $insertdata['preg'] = (isset($row['validation']) ? $row['validation'] : '');
-                $insertdata['help'] = (isset($row['help']) ? $row['help'] : '');
-                $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                $insertdata['mandatory'] = (isset($row['mandatory']) ? $row['mandatory'] : '');
-                $insertdata['other'] = (isset($row['other']) ? $row['other'] : 'N');
-                $insertdata['same_default'] = (isset($row['same_default']) ? $row['same_default'] : 0);
-                $insertdata['parent_qid'] = 0;
-
-                // For multi numeric survey : same name, add the gid to have same name on different gid. Bad for EM.
-                $fullqname="G{$gid}_".$qname;
-                if (isset($qinfo[$fullqname]))
-                {
-                    $qseq = $qinfo[$fullqname]['question_order'];
-                    $qid = $qinfo[$fullqname]['qid'];
-                    $insertdata['qid']  = $qid;
-                    $insertdata['question_order'] = $qseq;
-                }
-                else
-                {
-                    $insertdata['question_order'] = $qseq;
-                }
-                // Insert question and keep the qid for multi language survey
-                $result = Questions::model()->insertRecords($insertdata);
-                if(!$result){
-                    $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Could not insert question").". ".$clang->gT("Text file row number ").$rownumber." (".$qname.")";
-                    break;
-                }
-                $newqid = $result;
-                if (!isset($qinfo[$fullqname]))
-                {
-                    $results['questions']++;
-                    $qid=$newqid; // save this for later
-                    $qinfo[$fullqname]['qid'] = $qid;
-                    $qinfo[$fullqname]['question_order'] = $qseq++;
-                }
-                $aseq=0;    //reset the answer sortorder
-                $sqseq = 0;    //reset the sub question sortorder
-                // insert question attributes
-                foreach ($row as $key=>$val)
-                {
-                    switch($key)
-                    {
-                        case 'class':
-                        case 'type/scale':
-                        case 'name':
-                        case 'text':
-                        case 'validation':
-                        case 'relevance':
-                        case 'help':
-                        case 'language':
-                        case 'mandatory':
-                        case 'other':
-                        case 'same_default':
-                        case 'default':
-                            break;
-                        default:
-                            if ($key != '' && $val != '')
-                            {
-                                $insertdata = array();
-                                $insertdata['qid'] = $qid;
-                                $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                                $insertdata['attribute'] = $key;
-                                $insertdata['value'] = $val;
-                                $result=Question_attributes::model()->insertRecords($insertdata);//
-                                if(!$result){
-                                    $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert question attribute").". ".$clang->gT("Text file row number ").$rownumber." ({$key})";
-                                    break;
-                                }
-                                $results['question_attributes']++;
-                            }
-                            break;
-                    }
-                }
-
-                // insert default value
-                if (isset($row['default']))
-                {
-                    $insertdata=array();
-                    $insertdata['qid'] = $qid;
-                    $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                    $insertdata['defaultvalue'] = $row['default'];
-                    $result = Defaultvalues::model()->insertRecords($insertdata);
-                    if(!$result){
-                        $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert default value").". ".$clang->gT("Text file row number ").$rownumber;
-                        break;
-                    }
-                    $results['defaultvalues']++;
-                }
-                break;
-
-            case 'SQ':
-                $sqname = (isset($row['name']) ? $row['name'] : 'SQ' . $sqseq);
-                if ($qtype == 'O' || $qtype == '|')
-                {
-                    ;   // these are fake rows to show naming of comment and filecount fields
-                }
-                elseif ($sqname == 'other' && ($qtype == '!' || $qtype == 'L'))
-                    {
-                        // only want to set default value for 'other' in these cases - not a real SQ row
-                        // TODO - this isn't working
-                        if (isset($row['default']))
-                        {
-                            $insertdata=array();
-                            $insertdata['qid'] = $qid;
-                            $insertdata['specialtype'] = 'other';
-                            $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                            $insertdata['defaultvalue'] = $row['default'];
-                            $result = Defaultvalues::model()->insertRecords($insertdata);
-                            if(!$result){
-                                $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert default value").". ".$clang->gT("Text file row number ").$rownumber;
-                                break;
-                            }
-                            $results['defaultvalues']++;
-                        }
-                }
-                else
-                {
-                    $insertdata = array();
-                    $scale_id = (isset($row['type/scale']) ? $row['type/scale'] : 0);
-                    $insertdata['sid'] = $iNewSID;
-                    $insertdata['gid'] = $gid;
-                    $insertdata['parent_qid'] = $qid;
-                    $insertdata['type'] = $qtype;
-                    $insertdata['title'] = $sqname;
-                    $insertdata['question'] = (isset($row['text']) ? $row['text'] : '');
-                    $insertdata['relevance'] = (isset($row['relevance']) ? $row['relevance'] : '');
-                    $insertdata['preg'] = (isset($row['validation']) ? $row['validation'] : '');
-                    $insertdata['help'] = (isset($row['help']) ? $row['help'] : '');
-                    $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                    $insertdata['mandatory'] = (isset($row['mandatory']) ? $row['mandatory'] : '');
-                    $insertdata['scale_id'] = $scale_id;
-                    // For multi nueric language, qid is needed, why not gid. name is not unique.
-                    $fullsqname = "G{$gid}Q{$qid}_{$scale_id}_{$sqname}";
-                    if (isset($sqinfo[$fullsqname]))
-                    {
-                        $qseq = $sqinfo[$fullsqname]['question_order'];
-                        $sqid = $sqinfo[$fullsqname]['sqid'];
-                        $insertdata['question_order'] = $qseq;
-                        $insertdata['qid'] = $sqid;
-                    }
-                    else
-                    {
-                        $insertdata['question_order'] = $qseq;
-                    }
-                    // Insert sub question and keep the sqid for multi language survey
-                    $newsqid = Questions::model()->insertRecords($insertdata);
-                    if(!$newsqid){
-                        $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Could not insert sub question").". ".$clang->gT("Text file row number ").$rownumber." (".$qname.")";
-                        break;
-                    }
-                    if (!isset($sqinfo[$fullsqname]))
-                    {
-                        $sqinfo[$fullsqname]['question_order'] = $qseq++;
-                        $sqid=$newsqid; // save this for later
-                        $sqinfo[$fullsqname]['sqid'] = $sqid;
-                        $results['subquestions']++;
-                    }
-
-                    // insert default value
-                    if (isset($row['default']))
-                    {
-                        $insertdata=array();
-                        $insertdata['qid'] = $qid;
-                        $insertdata['sqid'] = $sqid;
-                        $insertdata['scale_id'] = $scale_id;
-                        $insertdata['language'] = (isset($row['language']) ? $row['language'] : $baselang);
-                        $insertdata['defaultvalue'] = $row['default'];
-                        $result = Defaultvalues::model()->insertRecords($insertdata);
-                        if(!$result){
-                            $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert default value").". ".$clang->gT("Text file row number ").$rownumber;
-                            break;
-                        }
-                        $results['defaultvalues']++;
-                    }
-                }
-                break;
-            case 'A':
-                $insertdata = array();
-                $insertdata['qid'] = $qid;
-                $insertdata['code'] = (isset($row['name']) ? $row['name'] : 'A' . $aseq);
-                $insertdata['answer'] = (isset($row['text']) ? $row['text'] : '');
-                $insertdata['scale_id'] = (isset($row['type/scale']) ? $row['type/scale'] : 0);
-                $insertdata['language']= (isset($row['language']) ? $row['language'] : $baselang);
-                $insertdata['assessment_value'] = (isset($row['relevance']) ? $row['relevance'] : '');
-                $insertdata['sortorder'] = ++$aseq;
-                $result = Answers::model()->insertRecords($insertdata); // or safeDie("Error: Failed to insert answer<br />");
-                if(!$result){
-                    $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Could not insert answer").". ".$clang->gT("Text file row number ").$rownumber;
-                }
-                $results['answers']++;
-                break;
+        if (trim($row[1]) == '' || $row[0] == 'RESERVED' || preg_match('/^COMMENT/',$row[0])) {
+            continue;
         }
+        if ($row[4] == '[') {
+            // insert group
+            $insertdata = array();
+            $insertdata['sid'] = $iNewSID;
+            $gname = 'G' . $gseq;
+            $glang = $baselang;
+            // when a multi-lang tsv-file without information on the group id/number (old style) is imported,
+            // we make up this information by giving a number 0..[numberofgroups-1] per language.
+            // the number and order of groups per language should be the same, so we can also import these files 
+            if ($lastglang!=$glang)    //reset counter on language change
+            {
+                $iGroupcounter=0;
+            }
+            $lastglang=$glang;
+            //use group id/number from file. if missing, use an increasing number (s.a.)
+            $sGroupseq='G'.$iGroupcounter++;
+            $insertdata['group_name'] = $gname;
+            $insertdata['grelevance'] = '';
+            $insertdata['description'] = '';
+            $insertdata['language'] = $glang;
 
+            // For multi language survey: same gid/sort order across all languages
+            if (isset($ginfo[$sGroupseq]))
+            {
+                $gid = $ginfo[$sGroupseq]['gid'];
+                $insertdata['gid'] = $gid;
+                $insertdata['group_order'] = $ginfo[$sGroupseq]['group_order'];
+            }
+            else
+            { 
+                $insertdata['group_order'] = $gseq;
+            }
+            $newgid = Groups::model()->insertRecords($insertdata);
+            if(!$newgid){
+                $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Failed to insert group").". ".$clang->gT("Text file row number ").$rownumber." (".$gname.")";
+                break;
+            }
+            if (!isset($ginfo[$sGroupseq]))
+            {
+                $results['groups']++;
+                $gid=$newgid;
+                $ginfo[$sGroupseq]['gid']=$gid;
+                $ginfo[$sGroupseq]['group_order']=$gseq++;
+            }
+            $qseq=0;    // reset the question_order            
+        }
+        if ($row[4] == '[' || $row[4] == 'q' || $row[4] == ']') {
+            // insert question
+            $insertdata = array();
+            $insertdata['sid'] = $iNewSID;
+            $ansoptions = explode("|",$row[7]);
+            switch(strtolower($ansoptions[0])) 
+            {
+                case 'date':
+                    $qtype = 'D';
+                    break;
+                case 'double': 
+                    $qtype = 'N';
+                    break;
+                case 'nothing':
+                    $qtype = 'X';
+                    break;
+                case 'list':
+                    $qtype = 'L';
+                    break;
+                case 'text':
+                    $qtype = 'S';
+                    break;
+                default:
+                    $qtype = 'X';
+                    break;
+            }
+            if ($row[4] == 'e') {
+                $qtype = '*';
+            }
+            
+            $qname = $row[1];
+            $insertdata['gid'] = $gid;
+            $insertdata['type'] = $qtype;
+            $insertdata['title'] = $qname;
+            $insertdata['question'] = $row[6];
+            $insertdata['relevance'] = $row[3];
+            $insertdata['preg'] = '';    // TODO - what is proper Dialogix syntax?
+            $insertdata['help'] = '';
+            $insertdata['language'] = $baselang;
+            $insertdata['mandatory'] = '';   // TODO - default to mandatory?
+            $insertdata['other'] = 'N';
+            $insertdata['same_default'] = 0;
+            $insertdata['parent_qid'] = 0;
+
+            // For multi numeric survey : same name, add the gid to have same name on different gid. Bad for EM.
+            $fullqname="G{$gid}_".$qname;
+            if (isset($qinfo[$fullqname]))
+            {
+                $qseq = $qinfo[$fullqname]['question_order'];
+                $qid = $qinfo[$fullqname]['qid'];
+                $insertdata['qid']  = $qid;
+                $insertdata['question_order'] = $qseq;
+            }
+            else
+            {
+                $insertdata['question_order'] = $qseq;
+            }
+            // Insert question and keep the qid for multi language survey
+            $result = Questions::model()->insertRecords($insertdata);
+            if(!$result){
+                $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Could not insert question").". ".$clang->gT("Text file row number ").$rownumber." (".$qname.")";
+                break;
+            }
+            $newqid = $result;
+            if (!isset($qinfo[$fullqname]))
+            {
+                $results['questions']++;
+                $qid=$newqid; // save this for later
+                $qinfo[$fullqname]['qid'] = $qid;
+                $qinfo[$fullqname]['question_order'] = $qseq++;
+            }
+            $aseq=0;    //reset the answer sortorder
+            $sqseq = 0;    //reset the sub question sortorder
+            
+            if ($qtype == 'L') {
+                array_shift($ansoptions);
+                for ($i = 0; $i < count($ansoptions)/2; ++$i) {
+                    $_code = $ansoptions[$i*2];
+                    if (preg_match('/^[\'"].+[\'"]$/',$_code)) {
+                        $_code = substr($_code,1,-1);
+                    }
+                    if (strlen($_code) > 5) {
+                        $_code = substr($_code,0,5);
+                    }
+                    $_value = $ansoptions[$i*2 + 1];
+                    
+                    $insertdata = array();
+                    $insertdata['qid'] = $qid;
+                    $insertdata['code'] = $_code;
+                    $insertdata['answer'] = $_value;
+                    $insertdata['scale_id'] = 0;
+                    $insertdata['language']= $baselang;
+                    $insertdata['assessment_value'] = '';
+                    $insertdata['sortorder'] = ++$aseq;
+                    $result = Answers::model()->insertRecords($insertdata); // or safeDie("Error: Failed to insert answer<br />");
+                    if(!$result){
+                        $results['error'][] = $clang->gT("Error")." : ".$clang->gT("Could not insert answer").". ".$clang->gT("Text file row number ").$rownumber;
+                    }
+                    $results['answers']++;                    
+                }
+            }
+        }
     }
 
     // Delete the survey if error found
