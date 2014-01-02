@@ -4812,7 +4812,9 @@ function DialogixImportSurvey($sFullFilepath)
         if (trim($row[1]) == '' || $row[0] == 'RESERVED' || preg_match('/^COMMENT/',$row[0])) {
             continue;
         }
-        if ($row[4] == '[') {
+        $_qvalidation = explode(';',trim($row[4]));
+        $_qOrE = $_qvalidation[0];
+        if ($_qOrE == '[') {
             // insert group
             $insertdata = array();
             $insertdata['sid'] = $iNewSID;
@@ -4867,7 +4869,7 @@ function DialogixImportSurvey($sFullFilepath)
             $qseq=0;    // reset the question_order     
         }
         
-        if (($row[4] == '[' && !$qIsGroupHeader) || $row[4] == 'q' || $row[4] == ']' || $row[4] == 'e') {
+        if (($_qOrE == '[' && !$qIsGroupHeader) || $_qOrE == 'q' || $_qOrE == ']' || $_qOrE == 'e') {
             // insert question
             $insertdata = array();
             $insertdata['sid'] = $iNewSID;
@@ -4890,19 +4892,32 @@ function DialogixImportSurvey($sFullFilepath)
                 case 'text':
                     $qtype = 'S';
                     break;
+                case 'memo':
+                    $qtype = 'T';
+                    break;
+                case 'radio':
+                    $qtype = 'L';
+                    break;
                 default:
                     $qtype = 'X';
                     break;
             }
-            if ($row[4] == 'e') {
+            if ($_qOrE == 'e') {
                 $qtype = '*';
             }
+            
+            $_qtext = $row[6];
+            $_qtext = preg_replace('/`(.*?)`/','{\1}',$_qtext);
+            $_qtext = preg_replace('/getAnsOption\((.*)\)/','\1.shown',$_qtext);
             
             $qname = $row[1];
             $insertdata['gid'] = $gid;
             $insertdata['type'] = $qtype;
             $insertdata['title'] = $qname;
-            $insertdata['question'] = $row[6];
+            $insertdata['question'] = $_qtext;
+            if ($qtype == '*') {
+                $insertdata['question'] = '{' . $_qtext . '}';                
+            }
             $insertdata['relevance'] = $row[3];
             $insertdata['preg'] = '';    // TODO - what is proper Dialogix syntax?
             $insertdata['help'] = '';
@@ -4942,7 +4957,31 @@ function DialogixImportSurvey($sFullFilepath)
             $aseq=0;    //reset the answer sortorder
             $sqseq = 0;    //reset the sub question sortorder
             
-            if ($qtype == 'L') {
+            if (count($_qvalidation) > 1) {
+                $insertdata = array();
+                $insertdata['qid'] = $qid;
+                $insertdata['language'] = $baselang;
+                if ($_qvalidation[2] != '') {
+                    $insertdata['attribute'] = 'min_num_value_n';
+                    $insertdata['value'] = $_qvalidation[2];
+                    $result=Question_attributes::model()->insertRecords($insertdata);
+                    if(!$result){
+                        $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert question attribute").". ".$clang->gT("Text file row number ").$rownumber." ({$key})";
+                    }
+                    $results['question_attributes']++;                   
+                }
+                if ($_qvalidation[3] != '') {
+                    $insertdata['attribute'] = 'max_num_value_n';
+                    $insertdata['value'] = $_qvalidation[3];
+                    $result=Question_attributes::model()->insertRecords($insertdata);
+                    if(!$result){
+                        $results['importwarnings'][] = $clang->gT("Warning")." : ".$clang->gT("Failed to insert question attribute").". ".$clang->gT("Text file row number ").$rownumber." ({$key})";
+                    }
+                    $results['question_attributes']++;                   
+                }                
+            }
+            
+            if ($_qtype == 'list' || $_qtype == 'radio') {
                 array_shift($ansoptions);
                 for ($i = 0; $i < count($ansoptions)/2; ++$i) {
                     $_code = $ansoptions[$i*2];
