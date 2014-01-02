@@ -4694,7 +4694,7 @@ function DialogixImportSurvey($sFullFilepath)
         $row = explode("\t",$rowline);
         for ($i = 0; $i < count($row); ++$i)
         {
-            $val = (isset($row[$i]) ? $row[$i] : '');
+            $val = (isset($row[$i]) ? trim($row[$i]) : '');
             // if Excel was used, it surrounds strings with quotes and doubles internal double quotes.  Fix that.
             if (preg_match('/^".*"$/',$val))
             {
@@ -4745,6 +4745,11 @@ function DialogixImportSurvey($sFullFilepath)
 
     // Create the survey entry
     $surveyinfo['startdate']=NULL;
+    $surveyinfo['language'] = 'en';
+    $surveyinfo['admin'] = '';
+    $surveyinfo['adminemail'] = '';
+    $surveyinfo['faxto'] = '';
+    $surveyinfo['format'] = 'G';
     $surveyinfo['active']='N';
     switchMSSQLIdentityInsert('surveys',true);
 
@@ -4827,6 +4832,14 @@ function DialogixImportSurvey($sFullFilepath)
             $insertdata['grelevance'] = '';
             $insertdata['description'] = '';
             $insertdata['language'] = $glang;
+            
+            if (preg_match('/^nothing/',$row[7])) {
+                $insertdata['description'] = $row[6];   // TODO - may only apply to ClinCare
+                $qIsGroupHeader = true;
+            }
+            else {
+                $qIsGroupHeader = false;
+            }
 
             // For multi language survey: same gid/sort order across all languages
             if (isset($ginfo[$sGroupseq]))
@@ -4851,14 +4864,16 @@ function DialogixImportSurvey($sFullFilepath)
                 $ginfo[$sGroupseq]['gid']=$gid;
                 $ginfo[$sGroupseq]['group_order']=$gseq++;
             }
-            $qseq=0;    // reset the question_order            
+            $qseq=0;    // reset the question_order     
         }
-        if ($row[4] == '[' || $row[4] == 'q' || $row[4] == ']') {
+        
+        if (($row[4] == '[' && !$qIsGroupHeader) || $row[4] == 'q' || $row[4] == ']' || $row[4] == 'e') {
             // insert question
             $insertdata = array();
             $insertdata['sid'] = $iNewSID;
             $ansoptions = explode("|",$row[7]);
-            switch(strtolower($ansoptions[0])) 
+            $_qtype = trim(strtolower($ansoptions[0]));
+            switch($_qtype) 
             {
                 case 'date':
                     $qtype = 'D';
