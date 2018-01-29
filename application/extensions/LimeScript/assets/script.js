@@ -1,5 +1,6 @@
 // Initial definition of Limesurvey javascript object.
-var LS = {};
+// If LS was already defined (e.g. in a plugin), use that object.
+var LS = LS || {};
 
 LS.createUrl = function (route, params)
 {
@@ -18,12 +19,12 @@ LS.createUrl = function (route, params)
         result = result + 'index.php';
     }
 
-    
+
     if (LS.data.urlFormat == 'get')
     {
         // Configure route.
         result += '?r=' + route;
-         
+
         // Configure params.
         for (var key in params)
         {
@@ -38,13 +39,13 @@ LS.createUrl = function (route, params)
         }
         // Configure route.
         result += route;
-        
+
         // Configure params.
         for (var key in params)
         {
             result = result + '/' + key + '/' + params[key];
         }
     }
-    
+
     return result;
-}
+};

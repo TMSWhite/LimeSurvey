@@ -1,4 +1,6 @@
-<?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+<?php if (!defined('BASEPATH')) {
+    exit('No direct script access allowed');
+}
     /*
     * LimeSurvey
     * Copyright (C) 2007-2011 The LimeSurvey Project Team / Carsten Schmitz
@@ -14,10 +16,10 @@
 
 
     /**
-    * TCPDF configuration file
-    *
-    * @package configuration
-    */
+     * TCPDF configuration file
+     *
+     * @package configuration
+     */
 
 
     /***************************************************************************
@@ -47,7 +49,7 @@
     * ADD TRAILING SLASH!
     ***********************************************************/
 
-    $tcpdf['base_url'] = '';
+    $tcpdf['base_url'] = 'dummy'; // If empty and debug === 2, "empty needle" occurs
 
 
     /************************************************************
@@ -72,7 +74,7 @@
     * ADD TRAILING SLASH!
     ***********************************************************/
 
-    $tcpdf['enable_disk_cache'] = FALSE;
+    $tcpdf['enable_disk_cache'] = false;
     $tcpdf['cache_directory'] = Yii::app()->getConfig('tempdir').DIRECTORY_SEPARATOR;
 
 
@@ -85,7 +87,7 @@
     * ADD TRAILING SLASH!
     ***********************************************************/
 
-    $tcpdf['image_directory'] = Yii::app()->getConfig('rootdir').DIRECTORY_SEPARATOR.'styles'.DIRECTORY_SEPARATOR.Yii::app()->getConfig('admintheme').DIRECTORY_SEPARATOR.'images'.DIRECTORY_SEPARATOR;
+    $tcpdf['image_directory'] = Yii::app()->getConfig('styledir').DIRECTORY_SEPARATOR.Yii::app()->getConfig('admintheme').DIRECTORY_SEPARATOR.'images'.DIRECTORY_SEPARATOR;
 
     /************************************************************
     * TCPDF default (blank) image
@@ -95,15 +97,6 @@
     ***********************************************************/
 
     $tcpdf['blank_image'] = $tcpdf['image_directory'].'_blank.png';
-
-
-    /************************************************************
-    * TCPDF language settings file
-    * ----------------------------------------------------------
-    * Directory and filename of the language settings file
-    ***********************************************************/
-
-    $tcpdf['language_file'] = $tcpdf['base_directory'].'config'.DIRECTORY_SEPARATOR.'lang'.DIRECTORY_SEPARATOR.'eng.php';
 
 
 
@@ -161,7 +154,7 @@
     * you run out of room on the current page.
     ***********************************************************/
 
-    $tcpdf['page_break_auto'] = TRUE;
+    $tcpdf['page_break_auto'] = true;
 
 
     /************************************************************
@@ -171,7 +164,7 @@
     * unicode, and specify the default encoding.
     ***********************************************************/
 
-    $tcpdf['unicode'] = TRUE;
+    $tcpdf['unicode'] = true;
     $tcpdf['encoding'] = 'UTF-8';
 
 
@@ -203,10 +196,13 @@
     * HTML <small> font size ratio
     ***********************************************************/
 
-    $tcpdf['page_font'] = 'freemono';
+    $tcpdf['page_font'] = 'freesans';
     $tcpdf['page_font_size'] = 9;
+    $tcpdf['data_font'] = 'freesans';
+    $tcpdf['data_font_size'] = 8;
+    $tcpdf['mono_font'] = 'freemono';
 
-    $tcpdf['small_font_ratio'] = 2/3;
+    $tcpdf['small_font_ratio'] = 2 / 3;
 
 
     /************************************************************
@@ -216,7 +212,7 @@
     * description string, and logo
     ***********************************************************/
 
-    $tcpdf['header_on'] = TRUE;
+    $tcpdf['header_on'] = true;
     $tcpdf['header_font'] = $tcpdf['page_font'];
     $tcpdf['header_font_size'] = 10;
     $tcpdf['header_margin'] = 5;
@@ -235,7 +231,7 @@
     * Enable the header, set the font, default text, and margin
     ***********************************************************/
 
-    $tcpdf['footer_on'] = TRUE;
+    $tcpdf['footer_on'] = true;
     $tcpdf['footer_font'] = $tcpdf['page_font'];
     $tcpdf['footer_font_size'] = 8;
     $tcpdf['footer_margin'] = 10;
@@ -260,4 +256,3 @@
     $tcpdf['cell_padding'] = 0;
 
     return $tcpdf;
-

@@ -1,11 +1,11 @@
 <?php
-
-interface iPlugin {
+namespace LimeSurvey\PluginManager;
+interface iPlugin
+{
 
     /**
      * Should return the description for this plugin
      * Constructor for the plugin
-     * 
      * @param PluginManager $manager    The plugin manager instantiating the object
      * @param int           $id         The id for storage
      */
@@ -65,5 +65,5 @@ interface iPlugin {
      * @param PluginEvent $event
      * @return PluginBase
      */
-   public function setEvent(PluginEvent $event);
+    public function setEvent(PluginEvent $event);
 }
